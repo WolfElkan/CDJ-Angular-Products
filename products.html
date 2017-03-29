@@ -3,50 +3,20 @@
 	<head>
 		<script type="text/javascript" src="bower_components/angular/angular.js"></script>
 		<title>Wolf's Page</title>
-		<style type="text/css">
-
-			/* For some reason, I can't get it to read another file. */
-			
-			.dojo-table {
-				border: solid black 3px;
-			}
-
-			.dojo-table thead {
-				border: none;
-			}
-
-			.dojo-table tr:nth-child(odd) {
-				background-color: #eee
-			}
-
-			.dojo-table tr:nth-child(even) {
-				background-color: #fff
-			}
-
-			.dojo-table th {
-				background-color: #ccc
-			}
-
-			.dojo-table thead, .dojo-table tr {
-				padding: 0;
-			}
-
-			.dojo-table thead th, .dojo-table tr td {
-				border-left: solid black 2px;
-			}
-
-			.dojo-table thead th:first-child, .dojo-table tr td:first-child {
-				border-left: none;
-			}
-
-		</style>
+		<link rel="stylesheet" type="text/css" href="dojo-table.css">
 		<script type="text/javascript">
 
 			var app = angular.module('app',[])
 
 			var ProductFactory = app.factory('ProductFactory',function() {
 				var factory = {}
-				var products = []
+				var products = [ // seed data
+					{'name':'C', 'price':4},
+					{'name':'D', 'price':1},
+					{'name':'B', 'price':5},
+					{'name':'E', 'price':3},
+					{'name':'A', 'price':2},
+				]
 				factory.new = {}
 				factory.create = function() {
 					products.push(factory.new)
@@ -64,18 +34,59 @@
 				return factory
 			})
 
-			var productsCXR = app.controller('productsCXR',['$scope','ProductFactory',function($scope, ProductFactory) {
-				$scope.Product = ProductFactory
-				$scope.products = ProductFactory.products()
-			}])
+			var SortTable = function($table) {
 
-			var sortCXR = app.controller('sortCXR',['$scope','$sce','ProductFactory',function($scope, $sce, ProductFactory) {
-
-				var $p = {}
-
-				_init($p)
+				// var $orders = {
+					// 'columns'      : ['name','price','qty'],
+					// 'column_names' : ['Name','Price','Qty available']
+				// }
+				$table.sort_column = '$index'
+				$table.sort_asc = false
+				$table.nColumns = $table.columns.length
+				$table.column_icons = homogeneous('&#x29eb',$table.nColumns)
 
 				// - - - HELPER FUNCTIONS - - -
+
+				function homogeneous(contents,length=1) {
+					arr = []
+					for (var i = 0; i < length; i++) {
+						arr[i] = contents
+					}
+					return arr
+				}
+
+				// - - - CALLABLE FUNCTIONS - - -
+
+				this.list = function() {
+					return $table.contents
+				}
+
+				this.headers = function() {
+					var headers = []
+					for (var i = 0; i < $table.column_names.length; i++) {
+						headers[i] = $table.column_names[i] + ' ' + $table.column_icons[i]
+					}
+					return headers
+				}
+
+				this.sort_column = function() {
+					return $table.columns[$table.sort_column]
+				}
+
+				this.sort_by = function(column) {
+					$table.column_icons = homogeneous('',$table.nColumns)
+					if (column == $table.sort_column) {
+						$table.sort_asc = !$table.sort_asc
+					} else {
+						$table.sort_column = column
+						$table.sort_asc = true
+					}
+					$table.column_icons[column] = $table.sort_asc ? '&#x25b2' : '&#x25bc'
+					return $table
+				}
+			}
+
+			var productsCXR = app.controller('productsCXR',['$scope','ProductFactory','$sce',function($scope, ProductFactory, $sce) {
 
 				function trust(obj) {
 					for (key in obj) {
@@ -84,93 +95,55 @@
 					return obj
 				}
 
-				// http://www.stoimen.com/blog/2010/07/09/friday-algorithms-javascript-bubble-sort/
-				function bubbleSort(list,column) { 
-					var swapped;
-					do {
-						swapped = false;
-						for (var i=0; i < list.length-1; i++) {
-							if (list[i][column] > list[i+1][column]) {
-								var temp = list[i];
-								list[i] = list[i+1];
-								list[i+1] = temp;
-								swapped = true;
-							}
-						}
-					} while (swapped);
-					return list
+				var table = new SortTable({
+					'contents'     : ProductFactory.products(),
+					'columns'      : ['name','price'],
+					'column_names' : ['Name','Price'],
+				})
+				$scope.Product = ProductFactory
+				$scope.products = table.list()
+				$scope.headers = trust(table.headers())
+				$scope.dynamic_order = table.sort_column()
+				$scope.sort_by = function(column_index) {
+					var sort = table.sort_by(column_index)
+					// $scope.dynamic_order = table.sort_column()
+					$scope.reverse = !sort.sort_asc
+					$scope.headers = trust(table.headers())
 				}
-
-				function reverse(list) {
-					var end = list.length-1
-					for (var i = 0; i < end / 2; i++) {
-						var temp = list[i]
-						list[i] = list[end-i]
-						list[end-i] = temp
-					}
-				}
-
-				// - - - REACTIVITY FUNCTIONS - - -
-
-				function _init($p) {
-					$p.sort_column = null
-					$p.sort_asc = false
-					$p.columns = ['name','price']
-					$p.column_names = ['Name','Price']
-					$p.column_icons = ['&#x29eb','&#x29eb']
-					_update($scope)
-				}
-
-				function _update($scope) {
-					var headers = []
-					for (var i = 0; i < $p.column_names.length; i++) {
-						headers[i] = $p.column_names[i] + ' ' + $p.column_icons[i]
-					}
-					$scope.headers = trust(headers)
-				}
-
-				// - - - CALLABLE FUNCTIONS - - -
-
-				$scope.sort_products_by = function(column) {
-					var products = ProductFactory.products()
-					$p.column_icons = ['','']
-					if (column == $p.sort_column) {
-						$p.sort_asc = !$p.sort_asc
-					} else {
-						$p.sort_column = column
-						$p.sort_asc = true
-					}
-					$p.column_icons[column] = $p.sort_asc ? '&#x25b2' : '&#x25bc'
-					products = bubbleSort(products,$p.columns[column])
-					$scope.products = $p.sort_asc ? products : reverse(products)
-					_update($scope)
-				}
-
 			}])
 
 		</script>
+
 	</head>
-	<body ng-controller="productsCXR">
-		<h1 ng-if="false">Error: Angular cannot be found, or is not able to run</h1>
-		<table>
-			<tr>
-				<td>Product Name:</td><td><input type="text" ng-model="Product.new.name"></td>
-			</tr>
-			<tr>
-				<td>Product Price:</td><td><input type="text" ng-model="Product.new.price"></td>
-			</tr>
-		</table>
-		<button ng-click="Product.create()">Add Product</button>
-		<table class="dojo-table">
-			<thead ng-controller="sortCXR">
-				<th ng-repeat="header in headers" ng-bind-html="header" ng-click="sort_products_by($index)"></th>
-				<th>Actions</th>
-			</thead>
-			<tr ng-repeat="product in products track by $index">
-				<td>{{product.name}}</td>
-				<td>{{product.price}}</td>
-				<td><button ng-click="Product.delete($index)">Delete</button></td>
-			</tr>
-		</table>
+
+	<body>
+		<div ng-controller="productsCXR">
+			<h1 ng-if="false">Error: Angular cannot be found, or is not able to run</h1>
+			<table>
+				<tr>
+					<td>Product Name:</td><td><input type="text" ng-model="Product.new.name"></td>
+				</tr>
+				<tr>
+					<td>Product Price:</td><td><input type="text" ng-model="Product.new.price"></td>
+				</tr>
+			</table>
+			<button ng-click="Product.create()">Add Product</button>
+			<table class="dojo-table">
+				<thead>
+					<th 
+						ng-repeat="header in headers" 
+						ng-bind-html="header" 
+						ng-click="sort_by($index)"
+					></th>
+					<th>Actions</th>
+				</thead>
+				<tr ng-repeat="
+				product in products | orderBy : dynamic_order : reverse">
+					<td>{{product.name}}</td>
+					<td ng-bind="product.price | currency : $ : 2" style="text-align: right;"></td>
+					<td><button ng-click="Product.delete($index)">Delete</button></td>
+				</tr>
+			</table>
+		</div>
 	</body>
 </html>

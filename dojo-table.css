@@ -1,5 +1,6 @@
 .dojo-table {
 	border: solid black 3px;
+	border-spacing: 0px;
 }
 
 .dojo-table tr:nth-child(odd) {
@@ -10,7 +11,7 @@
 	background-color: #fff
 }
 
-.dojo-table thead {
+.dojo-table thead th {
 	background-color: #ccc
 }
 
@@ -22,6 +23,6 @@
 	border-left: none;
 }
 
-.dojo-table th, .dojo-table td {
-	margin: 0;
+.dojo-table td {
+	padding: 5px;
 }
