@@ -11,24 +11,47 @@
 			var ProductFactory = app.factory('ProductFactory',function() {
 				var factory = {}
 				var products = [ // seed data
-					{'name':'C', 'price':4},
-					{'name':'D', 'price':1},
-					{'name':'B', 'price':5},
-					{'name':'E', 'price':3},
-					{'name':'A', 'price':2},
+					{'name':'C', 'price':4, 'qty':2, 'id':1},
+					{'name':'D', 'price':1, 'qty':5, 'id':2},
+					{'name':'B', 'price':5, 'qty':1, 'id':3},
+					{'name':'E', 'price':3, 'qty':6, 'id':4},
+					{'name':'A', 'price':2, 'qty':3, 'id':5},
 				]
+				var next_id = 6
 				factory.new = {}
 				factory.create = function() {
+					factory.new.qty = 50
+					factory.new.id = next_id++
 					products.push(factory.new)
 					factory.new = {}
 				}
-				factory.delete = function(index) {
+				function find(id) {
+					for (var i = 0; i < products.length; i++) {
+						if (products[i].id = id) {
+							var index = i
+							return index
+						}
+					}
+				}
+				factory.delete = function(id) {
+					console.log('before',products)
+					console.log('id:',id)
+					var index = find(id)
+					console.log('index:',index)
 					for (var i = index; i < products.length; i++) {
 						products[i] = products[i+1]
 					}
 					products.pop()
+					console.log('after',products)
 				}
-				factory.products = function() {
+				factory.buy = function(id) {
+					var index = find(id)
+					if (--products[index].qty <= 0) {
+						factory.delete(id)
+					}
+					console.log(products)
+				}
+				factory.all = function() {
 					return products
 				}
 				return factory
@@ -36,10 +59,6 @@
 
 			var SortTable = function($table) {
 
-				// var $orders = {
-					// 'columns'      : ['name','price','qty'],
-					// 'column_names' : ['Name','Price','Qty available']
-				// }
 				$table.sort_column = '$index'
 				$table.sort_asc = false
 				$table.nColumns = $table.columns.length
@@ -56,10 +75,6 @@
 				}
 
 				// - - - CALLABLE FUNCTIONS - - -
-
-				this.list = function() {
-					return $table.contents
-				}
 
 				this.headers = function() {
 					var headers = []
@@ -96,19 +111,41 @@
 				}
 
 				var table = new SortTable({
-					'contents'     : ProductFactory.products(),
 					'columns'      : ['name','price'],
 					'column_names' : ['Name','Price'],
 				})
-				$scope.Product = ProductFactory
-				$scope.products = table.list()
+				$scope.Product = ProductFactory // There ought to be a way to modularize this
 				$scope.headers = trust(table.headers())
 				$scope.dynamic_order = table.sort_column()
 				$scope.sort_by = function(column_index) {
 					var sort = table.sort_by(column_index)
-					// $scope.dynamic_order = table.sort_column()
-					$scope.reverse = !sort.sort_asc
 					$scope.headers = trust(table.headers())
+					$scope.dynamic_order = table.sort_column()
+					$scope.reverse = !sort.sort_asc
+				}
+			}])
+
+			var ordersCXR = app.controller('ordersCXR',['$scope','ProductFactory','$sce',function($scope, ProductFactory, $sce) {
+
+				function trust(obj) {
+					for (key in obj) {
+						obj[key] = $sce.trustAsHtml(obj[key])
+					}
+					return obj
+				}
+
+				var table = new SortTable({
+					'columns'      : ['name','price','qty'],
+					'column_names' : ['Name','Price','Qty available']
+				})
+				$scope.Product = ProductFactory
+				$scope.headers = trust(table.headers())
+				$scope.dynamic_order = table.sort_column()
+				$scope.sort_by = function(column_index) {
+					var sort = table.sort_by(column_index)
+					$scope.headers = trust(table.headers())
+					$scope.dynamic_order = table.sort_column()
+					$scope.reverse = !sort.sort_asc
 				}
 			}])
 
@@ -118,6 +155,7 @@
 
 	<body>
 		<div ng-controller="productsCXR">
+			<b>Products Controller</b>
 			<h1 ng-if="false">Error: Angular cannot be found, or is not able to run</h1>
 			<table>
 				<tr>
@@ -138,10 +176,31 @@
 					<th>Actions</th>
 				</thead>
 				<tr ng-repeat="
-				product in products | orderBy : dynamic_order : reverse">
+				product in Product.all() | orderBy : dynamic_order : reverse">
 					<td>{{product.name}}</td>
-					<td ng-bind="product.price | currency : $ : 2" style="text-align: right;"></td>
-					<td><button ng-click="Product.delete($index)">Delete</button></td>
+					<td ng-bind="product.price | currency" style="text-align: right;"></td>
+					<td><button ng-click="Product.delete(product.id)">Delete</button>{{product.id}}</td>
+				</tr>
+			</table>
+		</div>
+		<div ng-controller="ordersCXR">
+			<br excuse="I've been working on this assignment for a week">
+			<b>Orders Controller</b>
+			<table class="dojo-table">
+				<thead>
+					<th 
+						ng-repeat="header in headers" 
+						ng-bind-html="header" 
+						ng-click="sort_by($index)"
+					></th>
+					<th>Actions</th>
+				</thead>
+				<tr ng-repeat="
+				product in Product.all() | orderBy : dynamic_order : reverse">
+					<td>{{product.name}}</td>
+					<td ng-bind="product.price | currency" style="text-align: right;"></td>
+					<td style="text-align: right;">{{product.qty}}</td>
+					<td><button ng-click="Product.buy(product.id)">Buy</button>{{product.id}}</td>
 				</tr>
 			</table>
 		</div>
